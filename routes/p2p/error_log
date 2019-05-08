@@ -1,0 +1,7 @@
+[12-Oct-2018 18:02:10 UTC] PHP Fatal error:  Uncaught exception 'PDOException' with message 'SQLSTATE[HY093]: Invalid parameter number: number of bound variables does not match number of tokens' in /home/nismwq38dt2p/public_html/ragazza_backend/api/models/connection.php:88
+Stack trace:
+#0 /home/nismwq38dt2p/public_html/ragazza_backend/api/models/connection.php(88): PDOStatement->execute(Array)
+#1 /home/nismwq38dt2p/public_html/ragazza_backend/api/routes/p2p/request.php(176): dbDriver->runDriver(Array, Object(PDOStatement))
+#2 /home/nismwq38dt2p/public_html/ragazza_backend/api/routes/p2p/request.php(28): Kushki\PaymentRequest->generateOrder()
+#3 {main}
+  thrown in /home/nismwq38dt2p/public_html/ragazza_backend/api/models/connection.php on line 88
