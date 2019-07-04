@@ -2,6 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type");
 header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
+header('Content-Type: application/json');
 /*
  * Backend que se encarga de construir los productos desde la empresa
  * Carlos Estarita
@@ -17,7 +18,53 @@ if($_GET) {
      /**************************************************************
      * GETS
      *************************************************************/
-        
+        case 'selectProductsNewAPI':
+            echo $productRoute->NewGetAllProductData();
+            break;
+        case 'selectProductsNewAPIDiscount':
+            echo $productRoute->NewGetAllProductDataDiscount();
+            break;        
+        case 'selectNewProductAPI-ID':
+            echo $productRoute->newGetProductById($_GET['product_id']);
+            break;  
+        case 'selectStoreProductsByCategory':
+            echo $productRoute->GetProductsByStoreCategorie($_GET['manufacturer_id'], $_GET['category_id']);
+            break;
+        case 'selectProductsByCategory':
+            echo $productRoute->GetProductsByCategorie($_GET['category_id'], $_GET['product_id']);
+            break;        
+        case 'explorerNewAPI':
+            echo $productRoute->ExplorerByKeywords($_GET['keyword']);
+        break;
+        case 'getDescriptionIONIC':
+            echo $productRoute->GetDescriptionDecoded($_GET['product_id']);
+        break;
+        case 'getProductRelatedAPI':
+            echo $productRoute->GetRelatedProducts($_GET['product_id']);
+        break;
+        case 'getProductReviews':
+            echo $productRoute->GetReviews($_GET['product_id']);
+        break;
+        case 'GetProductFiltersByIdAPI':
+            echo $productRoute->GetFiltersById($_GET['product_id']);
+        break;
+            case 'GetAllProductFilterAPI':
+            echo $productRoute->GetAllProductFilters();
+        break;
+        case 'createRating':
+            echo $productRoute->CreateReview();
+        break;
+            case 'countCarts':
+            echo $productRoute->countItemsCart($_GET['customer_id']);
+        break;
+     /*
+      * UPDATE 
+      * un GET que hace un match de 16 tablas optimizando todas las consultas GET,
+      * siendo ahora Deprecated y ahora se utilizará unicamente una sola sentencia
+      */ 
+     /**************************************************************
+     * DEPRECATED GETS
+     *************************************************************/      
         case 'select':
             echo $productRoute->selectProducts($_GET['user_id']);         
             break;
@@ -164,6 +211,307 @@ class products {
         $this->driver = $this->BBDD->setPDO();
         $this->BBDD->setPDOConfig($this->driver);
     }
+    /* NUEVA OPTIMIZACIÓN GET
+     * Para optimizar la busqueda de productos
+     */
+    public function NewGetAllProductData() {
+        try {
+            // Sentencia que ya me trae toda la información del producto con un solo match
+            $ObjectProduct = $this->BBDD->ProductAllData(null, $this->driver, 'soluclic_', PREFIX.'product');
+            $this->BBDD->runDriver(null, $ObjectProduct);
+            if ($this->BBDD->verifyDriver($ObjectProduct)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($ObjectProduct);
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items);
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+        public function NewGetAllProductDataDiscount() {
+        try {
+            // Buscamos que productos tienen descuento
+            $discount = $this->BBDD->selectDriver(null, PREFIX.'product_discount', $this->driver);
+            $itemsData = array(); // Un arreglo donde iremos insertando la información de los productos
+            $this->BBDD->runDriver(null, $discount);
+            if ($this->BBDD->verifyDriver($discount)) {
+                // Entonces buscamos la información del producto
+                foreach($this->BBDD->fetchDriver($discount) as $data) {
+                    // por cada interacción buscaremos la información del producto
+                    $objectData = $this->BBDD->ProductAllData('p.product_id = ?', $this->driver, 'soluclic_', PREFIX.'product');
+                    $this->BBDD->runDriver(array($this->BBDD->scapeCharts($data->product_id)), $objectData);
+                    // Insertamos
+                    array_push($itemsData, $this->BBDD->fetchDriver($objectData)[0]);
+                }
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $itemsData;
+                return json_encode($items); 
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items); 
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function newGetProductById($product_id) {
+        try {
+           $objectProduct = $this->BBDD->ProductAllData('p.product_id = ?', $this->driver, 'soluclic_', PREFIX.'product');
+           $this->BBDD->runDriver(array(
+               $this->BBDD->scapeCharts($product_id)
+           ), $objectProduct);
+             if ($this->BBDD->verifyDriver($objectProduct)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($objectProduct);
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items);
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function GetProductsByStoreCategorie($manufacturer_id, $category_id) {
+        try {
+           $objectProduct = $this->BBDD->ProductAllData('pTc.category_id = ? AND p.manufacturer_id = ?', $this->driver, 'soluclic_', PREFIX.'product');
+           $this->BBDD->runDriver(array(
+               $this->BBDD->scapeCharts($category_id),
+               $this->BBDD->scapeCharts($manufacturer_id)
+           ), $objectProduct);
+             if ($this->BBDD->verifyDriver($objectProduct)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($objectProduct);
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items);
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+        public function GetProductsByCategorie($category_id, $product_id) {
+        try {
+           $objectProduct = $this->BBDD->ProductAllData('pTc.category_id = ? OR p.product_id = ?', $this->driver, 'soluclic_', PREFIX.'product');
+           $this->BBDD->runDriver(array(
+                $this->BBDD->scapeCharts($category_id),
+                $this->BBDD->scapeCharts($product_id)
+           ), $objectProduct);
+             if ($this->BBDD->verifyDriver($objectProduct)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($objectProduct);
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items);
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function ExplorerByKeywords($keyword) {
+        try {
+           $objectProduct = $this->BBDD->ProductAllData('pD.name LIKE ? OR catname LIKE ?', $this->driver, 'soluclic_', PREFIX.'product');
+           $this->BBDD->runDriver(array(
+               $this->BBDD->scapeCharts("%{$keyword}%"),
+               $this->BBDD->scapeCharts("%{$keyword}%")
+           ), $objectProduct);
+             if ($this->BBDD->verifyDriver($objectProduct)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($objectProduct);
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items);
+            }            
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());            
+        }
+    }
+    public function GetRelatedProducts($product_id) {
+        try {
+            // Buscamos en la db todosl os productos que tengan relacion
+            $related = $this->BBDD->selectDriver('related_id = ?', PREFIX.'product_related', $this->driver);
+            $arrayRelated = array(); // Este array nos permitira ir insertando la data de cadap roducto que va buscando relación
+            $this->BBDD->runDriver(array($this->BBDD->scapeCharts($product_id)), $related);
+            if ($this->BBDD->verifyDriver($related)) {
+                // Significa que ese producto tiene otros relacionados
+                foreach ($this->BBDD->fetchDriver($related) as $productData) {
+                    // AL obtener la relación del producto buscamos y devolvemos toda la data
+                    $productWithRelation = $this->BBDD->ProductAllData('p.product_id = ?', $this->driver, 'soluclic_', PREFIX.'product');
+                    $this->BBDD->runDriver(array($this->BBDD->scapeCharts($productData->product_id)), $productWithRelation);
+                    // Lo metemos en una pila de arreglos para luego retornarlo
+                    array_push($arrayRelated, $this->BBDD->fetchDriver($productWithRelation));
+                }
+                // Devolvemos la respuesta
+                $items = array();
+                $items['status'] = true;
+                $items['data'] = $arrayRelated;
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['msg'] = 'No hay productos relacioandos';
+                return json_encode($items);
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function GetReviews($product_id) {
+        try {
+            // Obtenemos los review del producto
+            $reviewArray = array();
+            $flag = 0;
+            $sum = 0;
+            $ObjectReview = $this->BBDD->selectDriver('product_id = ?', PREFIX.'review', $this->driver);
+            $this->BBDD->runDriver(array($this->BBDD->scapeCharts($product_id)), $ObjectReview);
+            if ($this->BBDD->verifyDriver($ObjectReview)) {
+                    foreach ($this->BBDD->fetchDriver($ObjectReview) as $review) {
+                        array_push($reviewArray, $review); // Por cada interacción vamos salvando el item anterior
+                        $sum += $review->rating; // Vamos sumando
+                        $flag++; 
+                    }
+            $Average = ($sum / $flag);
+            $items = array();
+            $items['status'] = true;
+            $items['data'] = $reviewArray;
+            $items['average'] = $Average;
+            return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['msg'] = 'No hay comentarios';
+                return json_encode($items);        
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function CreateReview() {
+        try {
+            $sql = '?, ?, ?, ?, ?, ?, NOW(), NOW()';
+            $fields = 'product_id, customer_id, author, text, rating, status, date_added, date_modified';
+            $rating = $this->BBDD->insertDriver($sql,PREFIX.'review', $this->driver, $fields);
+            $this->BBDD->runDriver(array(
+                $this->BBDD->scapeCharts($_POST['product_id']),
+                $this->BBDD->scapeCharts($_POST['customer_id']),
+                $this->BBDD->scapeCharts($_POST['author']),
+                $this->BBDD->scapeCharts($_POST['text']),
+                $this->BBDD->scapeCharts($_POST['rating']),
+                $this->BBDD->scapeCharts($_POST['status'])            
+            ), $rating);
+                $items = array();
+                $items['status'] = true;
+                $items['data'] = $_POST;
+                return json_encode($items);  
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function GetFiltersById($product_id) {
+        try {
+            $Filter = $this->BBDD->GetFilterData('p.product_id = ?', $this->driver, PREFIX.'product_filter', PREFIX.'filter_description', PREFIX.'filter_group_description');
+            $this->BBDD->runDriver(array($this->BBDD->scapeCharts($product_id)), $Filter);
+            if ($this->BBDD->verifyDriver($Filter)) {
+                $items = array();
+                $items['status'] = true;
+                $items['data'] = $this->BBDD->fetchDriver($Filter);
+                return json_encode($items);                 
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['msg'] = 'No hay filtros';
+                return json_encode($items); 
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+        public function GetAllProductFilters() {
+        try {
+            $Filter = $this->BBDD->GetFilterData(null, $this->driver, PREFIX.'product_filter', PREFIX.'filter_description', PREFIX.'filter_group_description');
+            $this->BBDD->runDriver(null, $Filter);
+            if ($this->BBDD->verifyDriver($Filter)) {
+                $items = array();
+                $items['status'] = true;
+                $items['data'] = $this->BBDD->fetchDriver($Filter);
+                return json_encode($items);                 
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['msg'] = 'No hay filtros';
+                return json_encode($items); 
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function GetDescriptionDecoded($product_id) {
+        try {
+            $object = $this->BBDD->selectDriver('product_id = ?', PREFIX.'product_description', $this->driver);
+            $this->BBDD->runDriver(array($this->BBDD->scapeCharts($product_id)), $object);
+            foreach ($this->BBDD->fetchDriver($object) as $description) {
+                return json_encode(html_entity_decode($description->description, ENT_QUOTES, 'UTF-8'));
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+         public function countItemsCart($customer_id) {
+         try {
+             $count = $this->BBDD->countDriver('customer_id = ?',PREFIX.'cart', $this->driver);
+             $this->BBDD->runDriver(array(
+                 $this->BBDD->scapeCharts($customer_id)
+             ), $count);
+             if ($this->BBDD->verifyDriver($count)) {
+                 foreach ($this->BBDD->fetchDriver($count) as $qty) {
+                     $success = array();
+                     $success['status'] = true;
+                     $success['message'] = 'items cargados';
+                     $success['total'] = $qty->index;
+                     return json_encode($success);
+                 }
+             } else {
+                 $err['status'] = false;
+                 $err['message'] = 'No tiene ningun producto';
+                 return json_encode($err);
+             }
+         } catch (Exception $ex) {
+             return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+         }
+     }
+    /*
+     * Fin de las nuevas actualizaciones
+     */
     public function selectProducts($user_id) {
         // Obtener todos los productos de la bbdd asociados a la empresa
         try {
@@ -400,7 +748,10 @@ class products {
                 $this->BBDD->scapeCharts($product_id)
             ), $productData);
             if ($this->BBDD->verifyDriver($productData)) {
-                return json_encode($this->BBDD->fetchDriver($productData));
+                $gallery = array();
+                $gallery['status'] = true;
+                $gallery['data'] = $this->BBDD->fetchDriver($productData);
+                return json_encode($gallery);
             } else {
                 $error = array();
                 $error['status'] = false;

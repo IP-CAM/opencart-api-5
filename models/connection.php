@@ -48,6 +48,14 @@ class dbDriver
             return $PDO_port->prepare("SELECT * FROM {$bbdd}");
         }
     }
+        public function Filter($condition, $bbdd, $PDO_port, $bbd2, $bbd3, $searchRow1, $searchRow2, $searchRow3, $searchRow4) {
+        if ($condition != null) {
+            return $PDO_port->prepare("SELECT DISTINCT * FROM {$bbdd} p LEFT JOIN {$bbd2} pd ON (p.{$searchRow1} = pd.{$searchRow2})"
+            . "LEFT JOIN {$bbd3} pc ON (pc.{$searchRow3} = pd.{$searchRow4}) WHERE {$condition}");
+        } else {
+            return $PDO_port->prepare("SELECT * FROM {$bbdd}");
+        }
+    }
     public function multipleOptiosn($condition,$bbdd, $PDO_port, $bbd2, $bbdd3) {
         if($condition!=null){
            // return $PDO_port->prepare("SELECT * FROM {$bbdd} WHERE {$condition}");
@@ -65,7 +73,50 @@ class dbDriver
         }else{
            return $PDO_port->prepare("SELECT * FROM {$bbdd}");       
         }  
-    }   
+    }
+    // 16
+    /*
+     * Función que se encargará de hacer busqueda en las 16 tablas de producto 
+     */
+    public function ProductAllData($condition, $PDO_port, $PREFIX, $bbdd) {
+        if ($condition != null) {
+            return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+            LEFT JOIN (SELECT product_id, language_id,name,description,tag,meta_title,meta_description,meta_keyword as item FROM {$PREFIX}product_description) AS pD ON (pD.product_id = p.product_id)
+            LEFT JOIN {$PREFIX}product_attribute pA ON (pA.product_id = p.product_id) 
+            LEFT JOIN (SELECT product_id,price as descuento FROM {$PREFIX}product_discount) AS pDi ON (pDi.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_filter pF ON (pF.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_option pO ON (pO.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_recurring pR ON (pR.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_related pRe ON (pRe.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_reward pRa ON (pRa.product_id = p.product_id)
+            LEFT JOIN (SELECT manufacturer_id, name as alianza FROM {$PREFIX}manufacturer) AS mF ON (mF.manufacturer_id = p.manufacturer_id)
+            LEFT JOIN (SELECT manufacturer_id, image as alianzaLogo FROM {$PREFIX}manufacturer) AS mL ON (mL.manufacturer_id = p.manufacturer_id)
+            LEFT JOIN {$PREFIX}product_to_category pTc ON (pTc.product_id = p.product_id)
+            LEFT JOIN (SELECT category_id, parent_id as catdata FROM {$PREFIX}category) AS pC ON (pC.category_id = pTc.category_id)
+            LEFT JOIN (SELECT category_id, name as catname FROM {$PREFIX}category_description) AS cN ON (cN.category_id = pTc.category_id)
+            LEFT JOIN (SELECT stock_status_id, name as stock FROM {$PREFIX}stock_status) AS sT ON (sT.stock_status_id = p.stock_status_id)
+            WHERE {$condition} GROUP BY p.product_id");
+        } else {
+            // Hace la misma busqueda por cada table pero sin condicional 
+            // Es decir busca toda la data relacionada con un producto sin preguntar el ID
+            return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+            LEFT JOIN (SELECT product_id, language_id,name,description,tag,meta_title,meta_description,meta_keyword as item FROM {$PREFIX}product_description) AS pD ON (pD.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_attribute pA ON (pA.product_id = p.product_id) 
+            LEFT JOIN (SELECT product_id,price as descuento FROM {$PREFIX}product_discount) AS pDi ON (pDi.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_filter pF ON (pF.product_id = p.product_id)
+            LEFT JOIN (SELECT manufacturer_id, name, image as alianza FROM {$PREFIX}manufacturer) AS mF ON (mF.manufacturer_id = p.manufacturer_id)
+            LEFT JOIN {$PREFIX}product_option pO ON (pO.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_recurring pR ON (pR.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_related pRe ON (pRe.product_id = p.product_id) 
+            LEFT JOIN {$PREFIX}product_reward pRa ON (pRa.product_id = p.product_id)
+            LEFT JOIN {$PREFIX}product_to_category pTc ON (pTc.product_id = p.product_id)
+            LEFT JOIN (SELECT category_id, parent_id as catdata FROM {$PREFIX}category) AS pC ON (pC.category_id = pTc.category_id)
+            LEFT JOIN (SELECT category_id, name as catname FROM {$PREFIX}category_description) AS cN ON (cN.category_id = pTc.category_id)
+            LEFT JOIN (SELECT stock_status_id, name as stock FROM {$PREFIX}stock_status) AS sT ON (sT.stock_status_id = p.stock_status_id)
+            GROUP BY p.product_id");
+            // LEFT JOIN (SELECT campos FROM soluclic_product_discount) AS pDi ON (pDi.product_id = p.product_id)
+        }
+    }
     public function Explorer($condition,$bbdd, $PDO_port, $bbd2, $bbdd3, $query1, $query2, $row) {
         return $PDO_port->prepare("SELECT DISTINCT * "
                 . "FROM {$bbdd} p LEFT JOIN {$bbd2} pd ON (p.product_id = pd.product_id)"
@@ -76,26 +127,62 @@ class dbDriver
         return $PDO_PORT->lastInsertId();
 
     }
+    public function GetFilterData($condition, $PDO_port, $bbdd, $bbdd2, $bbdd3) {
+        if ($condition != null) {
+             return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+                LEFT JOIN (SELECT filter_id, filter_group_id, name as Childs FROM {$bbdd2}) AS pd ON (p.filter_id = pd.filter_id) 
+                LEFT JOIN (SELECT filter_group_id, name AS parent FROM {$bbdd3}) AS pc ON (pc.filter_group_id = pd.filter_group_id) 
+                WHERE {$condition}");
+        } else {
+             return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+                LEFT JOIN (SELECT filter_id, filter_group_id, name as Childs FROM {$bbdd2}) AS pd ON (p.filter_id = pd.filter_id) 
+                LEFT JOIN (SELECT filter_group_id, name AS parent FROM {$bbdd3}) AS pc ON (pc.filter_group_id = pd.filter_group_id)");
+        }
+    }
+    public function GetFilterCategories($condition, $PDO_port, $bbdd, $bbdd2, $bbdd3) {
+        if ($condition != null) {
+             return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+                    LEFT JOIN (SELECT product_id, category_id as Category FROM {$bbdd2}) AS cat ON (p.product_id = cat.product_id)
+                    LEFT JOIN {$bbdd3} pc ON(pc.category_id = Category)
+                    WHERE {$condition} GROUP BY Category");
+        } else {
+             return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+                    LEFT JOIN (SELECT product_id, category_id as Category FROM {$bbdd2}) AS cat ON (p.product_id = cat.product_id)
+                    LEFT JOIN {$bbdd3} pc ON(pc.category_id = Category)
+                    ");
+        }
+    }    
+    public function GetFilterCategories2($condition, $PDO_port, $bbdd, $bbdd2, $bbdd3) {
+        if ($condition != null) {
+             return $PDO_port->prepare("SELECT * FROM {$bbdd} cat 
+                LEFT JOIN {$bbdd2} pc ON (pc.category_id = cat.category_id)
+                LEFT JOIN (SELECT product_id, category_id as qty FROM {$bbdd3}) as pTc ON (qty = pc.category_id)
+                WHERE {$condition} GROUP BY cat.category_id");
+        } else {
+             return $PDO_port->prepare("SELECT * FROM {$bbdd} p 
+                    LEFT JOIN (SELECT product_id, category_id as Category FROM {$bbdd2}) AS cat ON (p.product_id = cat.product_id)
+                    LEFT JOIN {$bbdd3} pc ON(pc.category_id = Category)
+                    ");
+        }
+    }     
+    
     /*
-     * // 		$user_query = $this->db->query("SELECT * FROM " . DB_PREFIX . 
-// 		"user WHERE username = '" . $this->db->escape($username) . "' AND 
-// 		(password = SHA1(CONCAT(salt, SHA1(CONCAT(salt, SHA1('" . $this->db->escape($password) . "'))))) 
-// 		OR password = '" . $this->db->escape(md5($password)) . "') AND status = '1'");
-     */
-
-    // SELECT * FROM ARTICULOS WHERE MATCH(TITULO, DESARROLLO) AGAINST ('$busqueda')
-    /*
-     * SELECT DISTINCT * FROM " . DB_PREFIX . "product p LEFT JOIN " . DB_PREFIX . 
-     * "product_description pd ON (p.product_id = pd.product_id) 
-     * WHERE p.product_id = '" . (int)$product_id . "'
-     */
-                            /*
-                         * SELECT DISTINCT *, MATCH (name) AGAINST ('Chaqueta') AS 
-                         * items FROM rgza_product_description p LEFT JOIN 
-                         * rgza_product_to_category pd ON (p.product_id = pd.product_id)
-LEFT JOIN rgza_category pc ON (pc.category_id = pd.category_id)
-WHERE MATCH (name) AGAINST ('Marca Anika') ORDER BY items DESC LIMIT 50
-
+     * SELECT * FROM soluclic_category cat 
+LEFT JOIN soluclic_category_description pc ON (pc.category_id = cat.category_id)
+LEFT JOIN (SELECT product_id, category_id as qty FROM soluclic_product_to_category) as pTc ON (qty = pc.category_id)
+WHERE pTc.product_id >= 0 GROUP BY cat.category_id
+     * 
+     * 
+SELECT * FROM soluclic_product_filter p 
+LEFT JOIN (SELECT filter_id, filter_group_id, name as Childs FROM soluclic_filter_description) AS pd ON (p.filter_id = pd.filter_id) 
+LEFT JOIN (SELECT filter_group_id, name AS parent FROM soluclic_filter_group_description) AS pc ON (pc.filter_group_id = pd.filter_group_id) 
+WHERE p.product_id = 40
+     * 
+     * SELECT * FROM soluclic_product p 
+LEFT JOIN (SELECT product_id, category_id as Category FROM soluclic_product_to_category) AS cat ON (p.product_id = cat.product_id)
+LEFT JOIN soluclic_category_description pc ON(pc.category_id = Category)
+WHERE p.manufacturer_id = 8
+ 
                          */
     public function scapeCharts($value)
     {

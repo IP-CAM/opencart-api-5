@@ -2,8 +2,13 @@
 /*
  * Retorna todos los manufacturer de la tienda
  */
+header("Access-Control-Allow-Origin: *");
+header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type");
+header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
+header('Content-Type: application/json');
 require_once '../models/config.php';
 require_once '../models/connection.php';
+
 if(isset($_GET['operationType']) && strcasecmp($_GET['operationType'], 'selectManufacturer')==0 ) {
     $manuList = new manufacturers();
     echo $manuList->getManufacturer();

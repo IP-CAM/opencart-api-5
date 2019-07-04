@@ -2,6 +2,7 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type");
 header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
+header('Content-Type: application/json');
 /*
  * Backend que se encarga de construir los productos desde la empresa
  * Carlos Estarita
@@ -12,6 +13,23 @@ require_once '../models/connection.php';
 if($_GET) {
     $openCartItems = new Items();
     switch($_GET['operationType']) {
+        /* UPDATE NEW API
+         */ 
+        case 'selectManufacturersProductAPI-ID':
+            echo $openCartItems->GetManufacturerProducts($_GET['manufacturer_id']);
+        break;
+        case 'StoreCategories':
+            echo $openCartItems->GetManufacturerCategories($_GET['manufacturer_id']);
+        break;
+        case 'GetCategoriesAPI':
+            echo $openCartItems->GetCategories();
+        break;
+        case 'ExplorerStores':
+            echo $openCartItems->GetStoresByKeyword($_GET['manufacturer_id']);
+        break;            
+         /* 
+         * END UPDATES
+         */
         case 'stock':
             echo $openCartItems->stock();
         break;
@@ -102,6 +120,97 @@ class Items {
         $this->BBDD->runDriver(null, $manufacturerType);
         return json_encode($this->BBDD->fetchDriver($manufacturerType));        
     }   
+        // Productos de una tienda especifica por ejemplo Todos los productos de la tienda Apple
+        public function GetManufacturerProducts($manufacturer_id) {
+        try {
+           $objectProduct = $this->BBDD->ProductAllData('p.manufacturer_id = ?', $this->driver, 'soluclic_', PREFIX.'product');
+           $this->BBDD->runDriver(array(
+               $this->BBDD->scapeCharts($manufacturer_id)
+           ), $objectProduct);
+             if ($this->BBDD->verifyDriver($objectProduct)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($objectProduct);
+                return json_encode($items);
+            } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 200;
+                return json_encode($items);
+            }
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    // Obtener las categorías que maneja una tienda
+        public function GetManufacturerCategories($manufacturer_id) {
+          try {
+              $ObjectCategory = $this->BBDD->GetFilterCategories('p.manufacturer_id = ?', $this->driver, PREFIX.'product', PREFIX.'product_to_category', PREFIX.'category_description');
+              $this->BBDD->runDriver(array(
+                  $this->BBDD->scapeCharts($manufacturer_id)
+              ), $ObjectCategory);
+              if ($this->BBDD->verifyDriver($ObjectCategory)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($ObjectCategory);
+                return json_encode($items);
+              } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 400;
+                return json_encode($items);
+              }
+          } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+          }
+        }
+        public function GetStoresByKeyword($keyword) {
+            try {
+                $objectStore = $this->BBDD->selectDriver('name LIKE ?', PREFIX.'manufacturer', $this->driver);
+                $this->BBDD->runDriver(array(
+                    $this->BBDD->scapeCharts("%{$keyword}%")
+                ), $objectStore);
+                if ($this->BBDD->verifyDriver($objectStore)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($objectStore);
+                return json_encode($items);                    
+                } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 400;
+                return json_encode($items);                    
+                }
+            } catch (PDOException $ex) {
+                return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+
+            }
+        }
+        public function GetCategories() {
+          try {
+              $ObjectCategory = $this->BBDD->GetFilterCategories2('pTc.product_id >= ?', $this->driver, PREFIX.'category', PREFIX.'category_description', PREFIX.'product_to_category');
+              $this->BBDD->runDriver(array(
+                  $this->BBDD->scapeCharts(0)
+              ), $ObjectCategory);
+              if ($this->BBDD->verifyDriver($ObjectCategory)) {
+                $items = array();
+                $items['status'] = true;
+                $items['code'] = 200;
+                $items['data'] = $this->BBDD->fetchDriver($ObjectCategory);
+                return json_encode($items);
+              } else {
+                $items = array();
+                $items['status'] = false;
+                $items['code'] = 400;
+                return json_encode($items);
+              }
+          } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+          }
+        }
         public function category($category_id = 0) {
         $categoryType = $this->BBDD->selectDriver('parent_id = ?',PREFIX.'category', $this->driver);
         $this->BBDD->runDriver(array(

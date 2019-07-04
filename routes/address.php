@@ -2,6 +2,8 @@
 header("Access-Control-Allow-Origin: *");
 header("Access-Control-Allow-Headers: Origin, X-Requested-With, Content-Type");
 header("Access-Control-Allow-Methods", "POST, GET, PUT, DELETE, OPTIONS");
+header('Content-Type: application/json');
+
 /*
  * Clase que retorna las direcciónes de envío que posee el Usuario
  * o crear una nueva
@@ -15,6 +17,21 @@ if ($_GET) {
         case 'getAddress':
             echo $address->getAddress($_GET['customer_id']);
             break;
+        /*
+         * Update new get address
+         */
+        case 'getAddressNewApi':
+            echo $address->GetAddressNewAPI($_GET['customer_id']);
+        break;
+        case 'createAddr':
+            echo $address->CreateNewAddr();
+        break;
+        case 'updateAddr':
+            echo $address->updateAddr();
+        break;
+    /*
+     * End update
+     */
         case 'getCountry': 
             echo $address->getCountry($_GET['country_id']);
             break;
@@ -54,6 +71,89 @@ class Address {
             $err['status'] = false;
             $err['message'] = 'No tiene direcciones cargadas';
             return json_encode($err);
+        }
+    }
+    // Actualización 4/7/2019 obtener la dirección con lef joins
+    public function GetAddressNewAPI($customer_id) {
+        try {
+            $addr = $this->BBDD->ThirtySearchOption('customer_id = ?',
+                    PREFIX.'address',
+                    $this->driver,
+                    PREFIX.'country', PREFIX.'zone',
+                    'country_id',
+                    'country_id',
+                    'zone_id',
+                    'zone_id');
+            $this->BBDD->runDriver(array($this->BBDD->scapeCharts($customer_id)), $addr);
+            if ($this->BBDD->verifyDriver($addr)) {
+                $success = array();
+                $success['status'] = true;
+                $success['data'] = $this->BBDD->fetchDriver($addr);
+                return json_encode($success);                
+            } else {
+                $err = array();
+                $err['status'] = false;
+                $err['message'] = 'No tiene direcciones cargadas';
+                return json_encode($err);                
+            }
+        } catch (Exception $ex) {
+          return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    // Crear una nueva dirección
+    public function CreateNewAddr() {
+        try {
+            $sql = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+            $fields = 'customer_id, firstname, lastname, company, address_1, address_2, city, postcode, country_id, zone_id, custom_field';
+            $addr = $this->BBDD->insertDriver($sql, PREFIX.'address', $this->driver, $fields);
+            $this->BBDD->runDriver(array(
+                $this->BBDD->scapeCharts($_POST['customer_id']),
+                $this->BBDD->scapeCharts($_POST['firstname']),
+                $this->BBDD->scapeCharts($_POST['lastname']),
+                $this->BBDD->scapeCharts($_POST['company']),
+                $this->BBDD->scapeCharts($_POST['address_1']),
+                $this->BBDD->scapeCharts($_POST['address_2']),
+                $this->BBDD->scapeCharts($_POST['city']),
+                $this->BBDD->scapeCharts($_POST['postcode']),
+                $this->BBDD->scapeCharts($_POST['country_id']),
+                $this->BBDD->scapeCharts($_POST['zone_id']),
+                $this->BBDD->scapeCharts($_POST['custom_field']),
+            ), $addr);
+            $objectAddr = array();
+            $objectAddr['status'] = true;
+            $objectAddr['data'] = $_POST;
+            $objectAddr['id'] = $this->BBDD->getLastInsert($this->driver);
+            return json_encode($objectAddr);
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
+        }
+    }
+    public function updateAddr() {
+        try {
+            $fields = 'firstname = ?, lastname = ?, company = ?, address_1 = ?, address_2 = ?,'
+                    . 'city = ?, postcode = ?, country_id = ?, zone_id = ?, custom_field = ?';
+            $addr = $this->BBDD->updateDriver('address_id = ? AND customer_id = ?', PREFIX.'address', $this->driver, $fields);
+            $this->BBDD->runDriver(array(
+                $this->BBDD->scapeCharts($_POST['firstname']),
+                $this->BBDD->scapeCharts($_POST['lastname']),
+                $this->BBDD->scapeCharts($_POST['company']),
+                $this->BBDD->scapeCharts($_POST['address_1']),
+                $this->BBDD->scapeCharts($_POST['address_2']),
+                $this->BBDD->scapeCharts($_POST['city']),
+                $this->BBDD->scapeCharts($_POST['postcode']),
+                $this->BBDD->scapeCharts($_POST['country_id']),
+                $this->BBDD->scapeCharts($_POST['zone_id']),
+                $this->BBDD->scapeCharts($_POST['custom_field']), 
+                $this->BBDD->scapeCharts($_POST['address_id']),
+                $this->BBDD->scapeCharts($_POST['customer_id']),
+            ), $addr);
+            $objectAddr = array();
+            $objectAddr['status'] = true;
+            $objectAddr['data'] = $_POST;
+            $objectAddr['id'] = $this->BBDD->getLastInsert($this->driver);
+            return json_encode($objectAddr);
+        } catch (PDOException $ex) {
+            return json_encode('Fallo en la conexión con la base de datos' . $ex->getMessage() . ' ' . $ex->getFile() . ' ' . $ex->getLine());
         }
     }
     public function getCountry($country_id) {
